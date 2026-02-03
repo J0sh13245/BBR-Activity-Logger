@@ -73,18 +73,15 @@ async def BBR(ctx, *, message):
   import re
 
   def normalize_key(raw: str) -> str:
-     k = raw.strip()
+    k = raw.strip()
 
-     # Removes leading bullet points or symbols
-     k = re.sub(r"^[\s>*•\-–—]+", "", k)
+    # Remove markdown characters
+    k = re.sub(r"[*_~`>]", "", k)
 
-     # Removes markdown bolds, underlines, italics, and other ones
-     k = re.sub(r"[*_~`]", "", k)
+    # Normalize spaces
+    k = re.sub(r"\s+", " ", k)
 
-     # Ensures clean spacing
-     k = re.sub(r"\s+", " ", k)
-
-     return k.lower()
+    return k.lower()
   
   def parse_fields(message: str) -> dict:
      data = {}
@@ -138,7 +135,7 @@ async def BBR(ctx, *, message):
         return data
   
   data = parse_fields(ctx.message.content)
-  
+
   await ctx.send(f"DEBUG PARSED: {data}")
 
   format_name = data.get("format")
