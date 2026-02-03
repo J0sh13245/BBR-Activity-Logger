@@ -133,9 +133,8 @@ async def BBR(ctx, *, message):
            data[canonical] = value
 
         return data
-  
+  await ctx.send("DEBUG RAW: \n" + ctx.message.content.replace("`", "'"))
   data = parse_fields(ctx.message.content)
-
   await ctx.send(f"DEBUG PARSED: {data}")
 
   format_name = data.get("format")
