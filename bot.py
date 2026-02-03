@@ -38,6 +38,10 @@ async def on_message(message):
   if message.channel.id not in LOG_CHANNEL_IDS:
     return
   
+  if message.content.strip() == "!seen":
+    await message.channel.send("✅ I can see this channel!")
+    return
+  
   await bot.process_commands(message)
 
 def get_sheet():
