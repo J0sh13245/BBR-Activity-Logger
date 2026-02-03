@@ -16,7 +16,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 # Google Sheet config. info
 SHEET_ID = "1oI3CNAzxhC8GvMPYoBpnQcTRY_OwKrKMiAhg_uOn5YI"
 SHEET_TAB_NAME = "Sheet1"
-SERVICE_ACCOUNT_FILE = "service_account.json"
+SERVICE_ACCOUNT_FILE = None
 
 # Set up intents (permissions)
 intents = discord.Intents.default()
@@ -46,9 +46,14 @@ def get_sheet():
         "https://www.googleapis.com/auth/drive",
     ]
 
-    creds = Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE,
-        scopes=scopes
+    import json
+    import os
+
+    google_creds = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
+
+    creds = Credentials.from_service_account_info(
+      google_creds,
+      scopes=scopes
     )
 
     gc = gspread.authorize(creds)
