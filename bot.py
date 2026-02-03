@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import gspread
 from google.oauth2.service_account import Credentials
 
-LOG_CHANNEL_ID = 1468075184505360394
+LOG_CHANNEL_IDS = {1468075184505360394, 1468264499596230718}
 
 # Load token from .env file
 load_dotenv()
@@ -35,7 +35,7 @@ async def on_message(message):
   if message.author.bot:
     return
   
-  if message.channel.id != LOG_CHANNEL_ID:
+  if message.channel.id not in LOG_CHANNEL_IDS:
     return
   
   await bot.process_commands(message)
