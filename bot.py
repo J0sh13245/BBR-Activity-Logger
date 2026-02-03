@@ -89,6 +89,35 @@ async def BBR(ctx, *, message):
   def parse_fields(message: str) -> dict:
      data = {}
 
+     # In case people try to use other words. Won't catch all, but will def catch some
+     ALIASES = {
+        "format": "format",
+        "type": "format",
+        "game format": "format",
+        "hosting format": "format",
+        "game type": "format",
+        "hosting type": "format",
+
+        "cast": "cast",
+        "size": "cast",
+        "count": "cast",
+        "cast size": "cast",
+        "cast count": "cast",
+        "player size": "cast",
+        "player count": "cast",
+
+        "log": "log",
+        "link": "log",
+        "hosting log": "log",
+        "hosting link": "log",
+        "log link": "log",
+        "logs link": "log",
+        "link to hosting log": "log",
+        "link to hostings long": "log",
+        "hosting log link": "log",
+        "hosting logs link": "log",
+     }
+
      for line in message.splitlines():
         if ":" not in line:
            continue
@@ -98,8 +127,10 @@ async def BBR(ctx, *, message):
         key = normalize_key(left)
         value = right.strip()
 
-        if key and value:
-           data[key] = value
+        canonical = ALIASES.get(key)
+
+        if canonical and value:
+           data[canonical] = value
 
         return data
   
