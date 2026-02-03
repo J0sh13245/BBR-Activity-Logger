@@ -117,16 +117,14 @@ async def BBR(ctx, *, message):
       "hosting log link": "log",
       "hosting logs link": "log",
     }
-
+    #Actually parsing the data here
     for line in message.splitlines():
       if ":" not in line:
         continue
-        
+       
       left, right = line.split(":", 1)
       key = normalize_key(left)
       value = right.strip()
-
-      print(f"DEBUG KEY='{key}  LEFT='{left}'")
 
       canonical = ALIASES.get(key)
       if canonical and value:
@@ -134,9 +132,7 @@ async def BBR(ctx, *, message):
 
     return data
   
-  await ctx.send("DEBUG RAW: \n" + ctx.message.content.replace("`", "'"))
   data = parse_fields(ctx.message.content)
-  await ctx.send(f"DEBUG PARSED: {data}")
 
   format_name = data.get("format")
   cast = data.get("cast")
