@@ -26,12 +26,6 @@ intents.message_content = True
 # Create bot instance
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-@bot.event
-async def on_ready():
-    print(f"✅ Logged in as {bot.user} (id: {bot.user.id})")
-    for g in bot.guilds:
-        print(f"   - in guild: {g.name} (id: {g.id})")
-
 def allowed_channel(ch):
     # allow the channel itself OR threads under it
     if ch.id in LOG_CHANNEL_IDS:
@@ -45,13 +39,6 @@ def allowed_channel(ch):
 async def on_message(message):
     if message.author.bot:
         return
-
-    guild_id = getattr(message.guild, "id", None)
-    channel_id = message.channel.id
-    parent_id = getattr(message.channel, "parent_id", None)
-
-    # Prints to Railway logs to see what the bot is receiving
-    print(f"MSG guild={guild_id} channel={channel_id} parent={parent_id} content={message.content!r}")
 
     if not allowed_channel(message.channel):
         return
@@ -141,7 +128,7 @@ async def BBR(ctx, *, message):
   )
   
   response = (
-        "**✅ Log received! View your activity in #host-tracker**\n "
+        "**✅ Log received! View your activity [here](https://discord.com/channels/1246158728076722308/1246179309987696721)**\n "
         
         
   )
