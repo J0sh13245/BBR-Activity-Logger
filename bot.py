@@ -138,6 +138,8 @@ async def BBR(ctx, *, message):
         return data
   
   data = parse_fields(ctx.message.content)
+  
+  await ctx.send(f"DEBUG PARSED: {data}")
 
   format_name = data.get("format")
   cast = data.get("cast")
