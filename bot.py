@@ -82,7 +82,7 @@ async def BBR(ctx, *, message):
   log = data.get("log")
 
 
-# Checking if the host's message has all parts
+  # Checking if the host's message has all parts
   if not all([format_name, cast, log]):
     await ctx.send("""
     ❌ **Submission not logged. Please double check your message format matches the following**:
@@ -97,7 +97,7 @@ async def BBR(ctx, *, message):
     await ctx.send("**❌ Submission not logged. Log must be a valid URL to your #hosting-logs**")
     return
   
-# Making sure cast is a number 
+  # Making sure cast is a number 
   m = re.search(r"\d+", cast)
   if not m:
     await ctx.send("**❌ Submission not logged. Cast must be a valid number**")
@@ -129,8 +129,14 @@ async def BBR(ctx, *, message):
         f"Log:  {log}"
         
   )
-
+  
   await ctx.send(response)
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        return  # ignore unknown commands
+    raise error
 
 # Run the bot
 bot.run(TOKEN)
