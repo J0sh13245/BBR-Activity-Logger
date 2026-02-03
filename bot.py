@@ -99,7 +99,7 @@ async def BBR(ctx, *, message):
         "hosting type": "format",
         "mode": "format",
         "game mode": "format",
-        
+
 
         "cast": "cast",
         "size": "cast",
@@ -143,14 +143,13 @@ async def BBR(ctx, *, message):
   cast = data.get("cast")
   log = data.get("log")
 
-  # --- Normalize format value (remove markdown + ignore caps) ---
-  if format_name:
-    format_clean = re.sub(r"[*_~`]", "", format_name).strip()
-    format_norm = format_clean.lower()
-    format_name = format_clean
-  else:
-    format_clean = None
-    format_norm = None
+  missing = []
+  if not format_name: missing.append("Format / Type")
+  if not cast: missing.append("Cast / Players")
+  if not log: missing.append("Log / Link")
+
+  if missing:
+     await ctx.send("❌ **Submission not logged. Missing: " + ", ".join(missing))
 
   # Checking if the host's message has all parts
   if not all([format_name, cast, log]):
