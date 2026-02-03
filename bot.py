@@ -9,6 +9,7 @@ from google.oauth2.service_account import Credentials
 
 LOG_CHANNEL_IDS = {1468075184505360394, 1468264499596230718}
 
+
 # Load token from .env file
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -27,22 +28,35 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-  print(f"Logged in as {bot.user}")
+    print(f"✅ Logged in as {bot.user} (id: {bot.user.id})")
+    for g in bot.guilds:
+        print(f"   - in guild: {g.name} (id: {g.id})")
 
-# Make bot ignore other Discord channels
+def allowed_channel(ch):
+    # allow the channel itself OR threads under it
+    if ch.id in LOG_CHANNEL_IDS:
+        return True
+    parent_id = getattr(ch, "parent_id", None)  # threads have parent_id
+    if parent_id and parent_id in LOG_CHANNEL_IDS:
+        return True
+    return False
+
 @bot.event
 async def on_message(message):
-  if message.author.bot:
-    return
-  
-  if message.channel.id not in LOG_CHANNEL_IDS:
-    return
-  
-  if message.content.strip() == "!seen":
-    await message.channel.send("✅ I can see this channel!")
-    return
-  
-  await bot.process_commands(message)
+    if message.author.bot:
+        return
+
+    guild_id = getattr(message.guild, "id", None)
+    channel_id = message.channel.id
+    parent_id = getattr(message.channel, "parent_id", None)
+
+    # Prints to Railway logs to see what the bot is receiving
+    print(f"MSG guild={guild_id} channel={channel_id} parent={parent_id} content={message.content!r}")
+
+    if not allowed_channel(message.channel):
+        return
+
+    await bot.process_commands(message)
 
 def get_sheet():
     scopes = [
