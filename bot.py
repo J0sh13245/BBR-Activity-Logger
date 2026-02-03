@@ -3,12 +3,12 @@ from datetime import datetime
 import re
 import discord
 from discord.ext import commands
+from discord import app_commands
 from dotenv import load_dotenv
 import gspread
 from google.oauth2.service_account import Credentials
 
 LOG_CHANNEL_IDS = {1468075184505360394, 1468264499596230718}
-
 
 # Load token from .env file
 load_dotenv()
@@ -25,6 +25,55 @@ intents.message_content = True
 
 # Create bot instance
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} slash commands.")
+    except Exception as e:
+        print("Slash sync failed:", e)
+
+@app_commands.command(name="log", description="Log a hosted activity to the sheet")
+@app_commands.describe(
+    format="What type of game/activity? (ex: Big Brother)",
+    cast="Cast size (number only)",
+    log_link="Link to the detailed log message"
+)
+async def log_cmd(interaction: discord.Interaction, format: str, cast: int, log_link: str):
+    # OPTIONAL: restrict to a channel
+    # if interaction.channel_id not in {123, 456}:
+    #     await interaction.response.send_message("❌ Use this in #activity-logs.", ephemeral=True)
+    #     return
+
+    # Basic validation
+    if cast <= 0 or cast > 100:
+        await interaction.response.send_message("❌ Cast must be a reasonable number.", ephemeral=True)
+        return
+
+    # If you want to require an actual URL:
+    if not (log_link.startswith("http://") or log_link.startswith("https://")):
+        await interaction.response.send_message("❌ Please paste a valid link (must start with http).", ephemeral=True)
+        return
+
+    host = str(interaction.user)  # ex: Josh13245
+    timestamp = discord.utils.utcnow().isoformat(timespec="seconds")
+    message_link = f"https://discord.com/channels/{interaction.guild_id}/{interaction.channel_id}/{interaction.id}"
+
+    # Append to sheet (use your existing sheet object / get_sheet())
+    sheet = get_sheet()  # <- your function
+    sheet.append_row(
+        [timestamp, host, format.strip(), cast, log_link, message_link],
+        value_input_option="USER_ENTERED"
+    )
+
+    await interaction.response.send_message(
+        f"✅ Log received!\n• **Format:** {format}\n• **Cast:** {cast}\n• **Link:** {log_link}",
+        ephemeral=True  # only the user sees it (optional)
+    )
+
+bot.tree.add_command(log_cmd)
 
 def allowed_channel(ch):
     # allow the channel itself OR threads under it
