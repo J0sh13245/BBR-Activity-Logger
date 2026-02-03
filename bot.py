@@ -84,56 +84,56 @@ async def BBR(ctx, *, message):
     return k.lower()
   
   def parse_fields(message: str) -> dict:
-     data = {}
+    data = {}
 
      # In case people try to use other words. Won't catch all, but will def catch some
-     ALIASES = {
-        "format": "format",
-        "type": "format",
-        "game format": "format",
-        "hosting format": "format",
-        "game type": "format",
-        "hosting type": "format",
-        "mode": "format",
-        "game mode": "format",
+    ALIASES = {
+      "format": "format",
+      "type": "format",
+      "game format": "format",
+      "hosting format": "format",
+      "game type": "format",
+      "hosting type": "format",
+      "mode": "format",
+      "game mode": "format",
 
 
-        "cast": "cast",
-        "size": "cast",
-        "count": "cast",
-        "cast size": "cast",
-        "cast count": "cast",
-        "player size": "cast",
-        "player count": "cast",
+      "cast": "cast",
+      "size": "cast",
+      "count": "cast",
+      "cast size": "cast",
+      "cast count": "cast",
+      "player size": "cast",
+      "player count": "cast",
 
-        "log": "log",
-        "link": "log",
-        "hosting log": "log",
-        "hosting link": "log",
-        "log link": "log",
-        "logs link": "log",
-        "link to hosting log": "log",
-        "link to hosting logs": "log",
-        "hosting log link": "log",
-        "hosting logs link": "log",
-     }
+      "log": "log",
+      "link": "log",
+      "hosting log": "log",
+      "hosting link": "log",
+      "log link": "log",
+      "logs link": "log",
+      "link to hosting log": "log",
+      "link to hosting logs": "log",
+      "hosting log link": "log",
+      "hosting logs link": "log",
+    }
 
-     for line in message.splitlines():
-        if ":" not in line:
-           continue
+    for line in message.splitlines():
+      if ":" not in line:
+        continue
         
-        left, right = line.split(":", 1)
+      left, right = line.split(":", 1)
+      key = normalize_key(left)
+      value = right.strip()
 
-        key = normalize_key(left)
-        value = right.strip()
-        print(f"DEBUG KEY='{key}  LEFT='{left}'")
+      print(f"DEBUG KEY='{key}  LEFT='{left}'")
 
-        canonical = ALIASES.get(key)
+      canonical = ALIASES.get(key)
+      if canonical and value:
+        data[canonical] = value
 
-        if canonical and value:
-           data[canonical] = value
-
-        return data
+    return data
+  
   await ctx.send("DEBUG RAW: \n" + ctx.message.content.replace("`", "'"))
   data = parse_fields(ctx.message.content)
   await ctx.send(f"DEBUG PARSED: {data}")
