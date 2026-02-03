@@ -89,7 +89,7 @@ async def BBR(ctx, *, message):
     
     !BBR
     Cast: [Cast size, only include number]
-    Date: [YYYY-MM-DD]
+    Format: [Big Brother, Instant BB, BB FF, Survivor, etc.]
     Log: [Must include link to #hosting-logs]
     """)
     return
@@ -123,13 +123,11 @@ async def BBR(ctx, *, message):
   )
   
   response = (
-        "✅ Log received!\n"
-        f"Format: {format_name}\n"
-        f"Cast: {cast_num}\n"
-        f"Log:  {log}"
+        "**✅ Log received! View your activity in #host-tracker**\n "
+        
         
   )
-  
+
   await ctx.send(response)
 
 @bot.event
