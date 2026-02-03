@@ -126,7 +126,7 @@ async def BBR(ctx, *, message):
 
         key = normalize_key(left)
         value = right.strip()
-        await ctx.send(f"DEBUG KEY='{key}  LEFT='{left}'")
+        print(f"DEBUG KEY='{key}  LEFT='{left}'")
 
         canonical = ALIASES.get(key)
 
