@@ -70,17 +70,41 @@ def get_sheet():
 @bot.command()
 async def BBR(ctx, *, message):
 
-  lines = message.split("\n")
+  import re
 
-  data = {}
+  def normalize_key(raw: str) -> str:
+     k = raw.strip()
 
-  for line in lines:
-    if ":" in line:
-      key, value = line.split(":", 1)
-      key = key.strip().lower()
-      value = value.strip()
+     # Removes leading bullet points or symbols
+     k = re.sub(r"^[\s>*•\-–—]+", "", k)
 
-      data[key] = value
+     # Removes markdown bolds, underlines, italics, and other ones
+     k = re.sub(r"[*_~`]", "", k)
+
+     # Ensures clean spacing
+     k = re.sub(r"\s+", " ", k)
+
+     return k.lower()
+  
+  def parse_fields(message: str) -> dict:
+     data = {}
+
+     for line in message.splitlines():
+        if ":" not in line:
+           continue
+        
+        left, right = line.split(":", 1)
+
+        key = normalize_key(left)
+        value = right.strip()
+
+        if key and value:
+           data[key] = value
+
+        return data
+  
+  data = parse_fields(message)
+
 
   format_name = data.get("format")
   cast = data.get("cast")
@@ -128,7 +152,7 @@ async def BBR(ctx, *, message):
   )
   
   response = (
-        "**✅ Log received! View your activity [here](https://discord.com/channels/1246158728076722308/1246179309987696721)**\n "
+        "**✅ Log received! View your activity [here](https://docs.google.com/spreadsheets/d/1oI3CNAzxhC8GvMPYoBpnQcTRY_OwKrKMiAhg_uOn5YI/edit?usp=sharing)**\n "
         
         
   )
