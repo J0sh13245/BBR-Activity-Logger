@@ -15,7 +15,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 
 # Google Sheet config. info
 SHEET_ID = "1oI3CNAzxhC8GvMPYoBpnQcTRY_OwKrKMiAhg_uOn5YI"
-SHEET_TAB_NAME = "Sheet1"
+SHEET_TAB_NAME = "Activity Logs"
 SERVICE_ACCOUNT_FILE = None
 
 # Set up intents (permissions)
