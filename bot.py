@@ -78,16 +78,12 @@ bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
 
 @bot.event
 async def on_ready():
-    guild_id = os.getenv("GUILD_ID")
-    if guild_id:
-        guild = discord.Object(id=int(guild_id))
-        await bot.tree.sync(guild=guild)  # fast, server-only
-        print(f"✅ Synced commands to guild {guild_id}")
-    else:
-        await bot.tree.sync()  # fallback: global
-        print("✅ Synced commands globally")
-
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    try:
+        synced = await bot.tree.sync(guild=GUILD_OBJ)
+        print(f"Synced {len(synced)} command(s) to guild.")
+    except Exception as e:
+        print("Sync failed:", e)
 
 @bot.tree.command(
     name="activitylog",
