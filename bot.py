@@ -2,7 +2,8 @@ import os
 import re
 import json
 from collections import Counter
-from datetime import datetime, date, timezone
+from datetime import datetime, date
+from typing import Optional, Tuple, List
 
 import discord
 from discord.ext import commands
@@ -141,135 +142,193 @@ async def activitylog(
         "https://docs.google.com/spreadsheets/d/1oI3CNAzxhC8GvMPYoBpnQcTRY_OwKrKMiAhg_uOn5YI/edit?usp=sharing"
     )
 
-# Helper functions for the /activitystats command
+# ========= Helper functions =========
 
-def try_parse_sheet_date(value) -> date | None:
+def parse_yyyy_mm_dd(s: Optional[str]) -> Optional[date]:
     """
-    Your sheet's "Date Logged" column is expected to be something like:
-      2026-02-08T17:12:34
-    or possibly:
-      2026-02-08 17:12:34
-    or:
-      2026-02-08
-    This returns a Python date (YYYY-MM-DD) or None if it can't parse.
+    Accepts 'YYYY-MM-DD' and returns a date object, or None if s is None/empty.
+    Raises ValueError if provided but invalid format.
     """
-    if value is None:
+    if not s:
+        return None
+    return datetime.strptime(s.strip(), "%Y-%m-%d").date()
+
+
+def parse_sheet_date(cell_value: str) -> Optional[date]:
+    """
+    Your sheet uses ISO like '2026-02-08T17:26:18' (or similar).
+    This extracts the date portion safely.
+    """
+    if not cell_value:
         return None
 
-    text = str(value).strip()
-    if not text:
-        return None
+    raw = str(cell_value).strip()
 
-    # Normalize a few common ISO variants
-    text = text.replace("Z", "")  # remove Z if present
+    # If it's ISO datetime: 'YYYY-MM-DDTHH:MM:SS'
+    if "T" in raw:
+        raw = raw.split("T", 1)[0]
 
-    # Try ISO datetime first
+    # If it's ISO-ish with space: 'YYYY-MM-DD HH:MM:SS'
+    if " " in raw:
+        raw = raw.split(" ", 1)[0]
+
     try:
-        # Accept both "YYYY-MM-DDTHH:MM:SS" and "YYYY-MM-DD HH:MM:SS"
-        iso_text = text.replace(" ", "T")
-        return datetime.fromisoformat(iso_text).date()
-    except ValueError:
-        pass
-
-    # Try date-only
-    try:
-        return datetime.strptime(text[:10], "%Y-%m-%d").date()
+        return datetime.strptime(raw, "%Y-%m-%d").date()
     except ValueError:
         return None
 
 
-def matches_host(row_host: str, query: str) -> bool:
+def host_matches(sheet_host: str, query: str) -> bool:
     """
-    Case-insensitive substring match. So query="josh" will match "Josh Whalen".
+    Flexible matching:
+    - ignores case
+    - ignores leading/trailing spaces
+    - supports partial match (so "Josh" matches "JOsh13245")
     """
-    return query.lower().strip() in (row_host or "").lower()
+    a = (sheet_host or "").strip().lower()
+    b = (query or "").strip().lower()
+    if not b:
+        return False
+    return b in a
 
 
-def pretty_range(start_dt: datetime | None, end_dt: datetime | None) -> str:
-    if not start_dt and not end_dt:
-        return "All time"
-    s = start_dt.date().isoformat() if start_dt else "…"
-    e = end_dt.date().isoformat() if end_dt else "…"
-    return f"{s} → {e}"
+def load_activity_rows(sheet) -> List[list]:
+    """
+    Returns all rows except header.
+    gspread: sheet.get_all_values() returns list[list[str]]
+    """
+    values = sheet.get_all_values()
+    if not values or len(values) < 2:
+        return []
+    return values[1:]  # skip header
 
-# Slash command /activitystats starts here
+
+def filter_rows_for_stats(
+    rows: List[list],
+    host_query: str,
+    start: Optional[date],
+    end: Optional[date],
+) -> List[list]:
+    """
+    Filters rows by host substring + optional inclusive date range.
+    """
+    out = []
+    for r in rows:
+        # Defensive: ensure row has at least the columns we expect
+        # Date Logged (0), Host (1), Format (2)
+        if len(r) < 3:
+            continue
+
+        row_date = parse_sheet_date(r[0])
+        row_host = r[1]
+        if not row_date:
+            continue
+
+        if not host_matches(row_host, host_query):
+            continue
+
+        if start and row_date < start:
+            continue
+        if end and row_date > end:
+            continue
+
+        out.append(r)
+
+    return out
+
+
+def format_breakdown_message(total: int, counts: Counter) -> str:
+    """
+    Produces a nice breakdown string.
+    """
+    if total == 0:
+        return "No activity found."
+
+    lines = []
+    for fmt, c in counts.most_common():
+        pct = (c / total) * 100
+        lines.append(f"• **{fmt}** — {c} ({pct:.1f}%)")
+    return "\n".join(lines)
+
+
+# ========= /activitystats command =========
+# IMPORTANT: this uses ONLY supported slash types:
+# host: str, start_date: str, end_date: str
+
 @bot.tree.command(
     name="activitystats",
     description="Get hosting stats for a host (optional date range).",
-    guild=GUILD_OBJ,  # real server only, same as /activitylog
+    guild=GUILD_OBJ  # real server only (same style as /activitylog)
 )
 @app_commands.describe(
-    host="Host name (partial match works, ex: josh)",
-    start="Optional start (use the date/time picker)",
-    end="Optional end (use the date/time picker)",
+    host="Host name (or partial) e.g. Josh",
+    start_date="Start date YYYY-MM-DD (optional)",
+    end_date="End date YYYY-MM-DD (optional)"
 )
 async def activitystats(
     interaction: discord.Interaction,
     host: str,
-    start: datetime | None = None,
-    end: datetime | None = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
 ):
-    # Convert picker datetimes into dates (we ignore time)
-    start_date = start.date() if start else None
-    end_date = end.date() if end else None
+    # Defer if your sheet can be slow (prevents Discord 'interaction failed')
+    await interaction.response.defer(ephemeral=True)
 
-    if start_date and end_date and start_date > end_date:
-        await interaction.response.send_message(
-            "❌ Start date must be on or before end date.",
-            ephemeral=True,
-        )
+    # Parse date inputs safely
+    try:
+        start = parse_yyyy_mm_dd(start_date)
+    except ValueError:
+        await interaction.followup.send("❌ Start date must be in `YYYY-MM-DD` format.", ephemeral=True)
         return
 
-    # Load all rows from the sheet (dicts keyed by header names)
+    try:
+        end = parse_yyyy_mm_dd(end_date)
+    except ValueError:
+        await interaction.followup.send("❌ End date must be in `YYYY-MM-DD` format.", ephemeral=True)
+        return
+
+    if start and end and start > end:
+        await interaction.followup.send("❌ Start date cannot be after end date.", ephemeral=True)
+        return
+
+    # Load sheet rows
     sheet = get_sheet()
-    rows = sheet.get_all_records()
+    rows = load_activity_rows(sheet)
 
-    # Filter rows by host + date range
-    filtered = []
-    for r in rows:
-        row_host = r.get("Host", "")
-        if not matches_host(row_host, host):
-            continue
+    # Filter
+    matches = filter_rows_for_stats(rows, host_query=host, start=start, end=end)
 
-        d = try_parse_sheet_date(r.get("Date Logged"))
-        if not d:
-            continue
-
-        if start_date and d < start_date:
-            continue
-        if end_date and d > end_date:
-            continue
-
-        filtered.append(r)
-
-    if not filtered:
-        await interaction.response.send_message(
-            f"ℹ️ No activity found for **{host}** in range **{pretty_range(start, end)}**.",
-            ephemeral=True,
+    total = len(matches)
+    if total == 0:
+        # Show what range was used for clarity
+        range_txt = ""
+        if start or end:
+            range_txt = f"\nDate range: `{start_date or '…'}` → `{end_date or '…'}`"
+        await interaction.followup.send(
+            f"❌ No activity found for **{host}**.{range_txt}",
+            ephemeral=True
         )
         return
 
-    total = len(filtered)
+    # Count by format (Format column index = 2)
+    fmt_counts = Counter((r[2] or "Unknown").strip() for r in matches)
 
-    # Breakdown by format
-    formats = [(r.get("Format") or "Unknown").strip() for r in filtered]
-    counts = Counter(formats)
-    top = counts.most_common(25)
+    # Build response
+    range_part = ""
+    if start or end:
+        range_part = f"\n**Date range:** `{start_date or '…'}` → `{end_date or '…'}`"
 
-    lines = []
-    for fmt, n in top:
-        pct = (n / total) * 100
-        lines.append(f"• **{fmt}** — {n} ({pct:.1f}%)")
+    breakdown = format_breakdown_message(total, fmt_counts)
 
-    response = (
+    msg = (
         f"📊 **Activity Stats**\n"
-        f"**Host match:** `{host}`\n"
-        f"**Range:** **{pretty_range(start, end)}**\n"
-        f"**Total hostings:** **{total}**\n\n"
-        f"**By format:**\n" + "\n".join(lines)
+        f"**Host:** {host}\n"
+        f"**Total hostings:** {total}"
+        f"{range_part}\n\n"
+        f"**By format:**\n{breakdown}"
     )
 
-    await interaction.response.send_message(response, ephemeral=True)
+    await interaction.followup.send(msg, ephemeral=True)
     
 # Run the bot
 bot.run(TOKEN)
