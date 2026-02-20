@@ -44,6 +44,12 @@ FORMAT_CHOICES = [
     app_commands.Choice(name="The Hunger Games", value="the_hunger_games"),
     app_commands.Choice(name="Other", value="other"),
 ]
+# Dropdown Options for Casting Selection Process
+CASTING_PROCESS_CHOICES = [
+    app_commands.Choice(name="Standard", value="Standard"),
+    app_commands.Choice(name="Handpicked", value="Handpicked"),
+    app_commands.Choice(name="All", value="All"),
+]
 
 # Google Sheet config. info
 SHEET_ID = "1oI3CNAzxhC8GvMPYoBpnQcTRY_OwKrKMiAhg_uOn5YI"
@@ -92,13 +98,18 @@ async def on_ready():
 )
 @app_commands.describe(
     format="Choose the game format",
+    casting_process="Select casting process",
     cast="Number of players",
     log_url="Link to the hosting log message"
 )
-@app_commands.choices(format=FORMAT_CHOICES)
+@app_commands.choices(format=FORMAT_CHOICES,
+                      casting_process=CASTING_PROCESS_CHOICES
+                      )
+
 async def activitylog(
     interaction: discord.Interaction,
     format: app_commands.Choice[str],
+    casting_process: app_commands.Choice[str],
     cast: int,
     log_url: str
 ):
@@ -126,6 +137,7 @@ async def activitylog(
         datetime.now().isoformat(timespec="seconds"),  # Date Logged
         interaction.user.display_name,                 # Host
         format.name,                                   # Format
+        casting_process.name,                          # Casting Process
         cast,                                          # Cast Size
         log_url,                                       # Hosting Logs Message Link
         activity_log_link,                             # Activity Logs Message Link
