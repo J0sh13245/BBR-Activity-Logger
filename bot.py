@@ -113,42 +113,53 @@ async def activitylog(
     cast: int,
     log_url: str
 ):
+    # ACK immediately so Discord doesn't timeout
+    await interaction.response.defer(ephemeral=True)
+
     # Basic validation
     if cast <= 0 or cast > 100:
-        await interaction.response.send_message("❌ Cast must be a reasonable number.", ephemeral=True)
+        await interaction.followup.send("❌ Cast must be a reasonable number.", ephemeral=True)
         return
 
     if not (log_url.startswith("http://") or log_url.startswith("https://")):
-        await interaction.response.send_message("❌ Log link must be a valid URL (http/https).", ephemeral=True)
+        await interaction.followup.send("❌ Log link must be a valid URL (http/https).", ephemeral=True)
         return
 
-    # Write to Google Sheet
-    sheet = get_sheet()
-
     activity_log_link = (
-    f"https://discord.com/channels/"
-    f"{interaction.guild_id}/"
-    f"{interaction.channel_id}/"
-    f"{interaction.id}"
-  )
-
-    sheet.append_row(
-    [
-        datetime.now().isoformat(timespec="seconds"),  # Date Logged
-        interaction.user.display_name,                 # Host
-        format.name,                                   # Format
-        casting_process.name,                          # Casting Process
-        cast,                                          # Cast Size
-        log_url,                                       # Hosting Logs Message Link
-        activity_log_link,                             # Activity Logs Message Link
-    ],
-    value_input_option="USER_ENTERED",
-  )
-
-    await interaction.response.send_message(
-        "**✅ Log received! View your activity here:** "
-        "https://docs.google.com/spreadsheets/d/1oI3CNAzxhC8GvMPYoBpnQcTRY_OwKrKMiAhg_uOn5YI/edit?usp=sharing"
+        f"https://discord.com/channels/"
+        f"{interaction.guild_id}/"
+        f"{interaction.channel_id}/"
+        f"{interaction.id}"
     )
+
+    try:
+        # Write to Google Sheet (this can be slow)
+        sheet = get_sheet()
+        sheet.append_row(
+            [
+                datetime.now().isoformat(timespec="seconds"),  # Date Logged
+                interaction.user.display_name,                 # Host
+                format.name,                                   # Format
+                casting_process.name,                          # Casting Process
+                cast,                                          # Cast Size
+                log_url,                                       # Hosting Logs Message Link
+                activity_log_link,                             # Activity Logs Message Link
+            ],
+            value_input_option="USER_ENTERED",
+        )
+
+        await interaction.followup.send(
+            "**✅ Log received! View your activity here:** "
+            "https://docs.google.com/spreadsheets/d/1oI3CNAzxhC8GvMPYoBpnQcTRY_OwKrKMiAhg_uOn5YI/edit?usp=sharing",
+            ephemeral=True
+        )
+
+    except Exception as e:
+        await interaction.followup.send(
+            f"❌ Something went wrong while logging to Google Sheets:\n`{type(e).__name__}: {e}`",
+            ephemeral=True
+        )
+        raise
 
 # ========= Helper functions =========
 
