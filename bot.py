@@ -86,16 +86,16 @@ bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
 async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     try:
+        # 1) Clean up GLOBAL commands (deletes stale global duplicates if you have none defined)
+        global_synced = await bot.tree.sync()
+        print(f"Synced {len(global_synced)} global command(s).")
+
+        # 2) Sync GUILD commands (your /activitylog and /activitystats)
         if GUILD_OBJ:
-            # Clear ALL guild commands for this bot, then resync
-            bot.tree.clear_commands(guild=GUILD_OBJ)
-            synced = await bot.tree.sync(guild=GUILD_OBJ)
-            print(f"Clean-synced {len(synced)} command(s) to guild.")
+            guild_synced = await bot.tree.sync(guild=GUILD_OBJ)
+            print(f"Synced {len(guild_synced)} command(s) to guild.")
         else:
-            # fallback global sync
-            bot.tree.clear_commands(guild=None)
-            synced = await bot.tree.sync()
-            print(f"Clean-synced {len(synced)} global command(s).")
+            print("No GUILD_ID set; skipping guild sync.")
     except Exception as e:
         print("Sync failed:", e)
 
