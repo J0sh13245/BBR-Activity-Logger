@@ -90,13 +90,11 @@ async def on_ready():
         print(f"Synced {len(synced)} command(s) to guild.")
     except Exception as e:
         print("Sync failed:", e)
-    print("GUILD_ID:", GUILD_ID)
-    print("GUILD_OBJ:", GUILD_OBJ)
 
 @bot.tree.command(
     name="activitylog",
     description="Log a hosting activity",
-    guild=GUILD_OBJ  # real server only
+    guild=GUILD_OBJ
 )
 @app_commands.describe(
     format="Choose the game format",
@@ -104,11 +102,59 @@ async def on_ready():
     cast="Number of players",
     log_url="Link to the hosting log message"
 )
-@app_commands.choices(format=FORMAT_CHOICES,
-                      casting_process=CASTING_PROCESS_CHOICES
-                      )
+@app_commands.choices(format=FORMAT_CHOICES, casting_process=CASTING_PROCESS_CHOICES)
+async def activitylog(
+    interaction: discord.Interaction,
+    format: app_commands.Choice[str],
+    casting_process: app_commands.Choice[str],
+    cast: int,
+    log_url: str
+):
+    # ACK immediately so Discord doesn't timeout
+    await interaction.response.defer(ephemeral=True)
 
+    # Basic validation
+    if cast <= 0 or cast > 100:
+        await interaction.followup.send("❌ Cast must be a reasonable number.", ephemeral=True)
+        return
 
+    if not (log_url.startswith("http://") or log_url.startswith("https://")):
+        await interaction.followup.send("❌ Log link must be a valid URL (http/https).", ephemeral=True)
+        return
+
+    activity_log_link = (
+        f"https://discord.com/channels/"
+        f"{interaction.guild_id}/"
+        f"{interaction.channel_id}/"
+        f"{interaction.id}"
+    )
+
+    try:
+        sheet = get_sheet()
+        sheet.append_row(
+            [
+                datetime.now().isoformat(timespec="seconds"),
+                interaction.user.display_name,
+                format.name,
+                casting_process.name,
+                cast,
+                log_url,
+                activity_log_link,
+            ],
+            value_input_option="USER_ENTERED",
+        )
+
+        await interaction.followup.send(
+            "**✅ Log received! View your activity here:** "
+            "https://docs.google.com/spreadsheets/d/1oI3CNAzxhC8GvMPYoBpnQcTRY_OwKrKMiAhg_uOn5YI/edit?usp=sharing",
+            ephemeral=True
+        )
+
+    except Exception as e:
+        await interaction.followup.send(
+            f"❌ Something went wrong while logging to Google Sheets:\n`{type(e).__name__}: {e}`",
+            ephemeral=True
+        )
 
 # ========= Helper functions =========
 
