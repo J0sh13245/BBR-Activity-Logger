@@ -17,6 +17,7 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 LOG_CHANNEL_IDS = {1468075184505360394, 1468264499596230718}
+ALLOWED_CHANNEL_ID = 1468264499596230718
 
 GUILD_ID = int(os.getenv("GUILD_ID", "0"))
 GUILD_OBJ = discord.Object(id=GUILD_ID) if GUILD_ID else None
@@ -111,6 +112,7 @@ async def on_ready():
     log_url="Link to the hosting log message"
 )
 @app_commands.choices(format=FORMAT_CHOICES, casting_process=CASTING_PROCESS_CHOICES)
+
 async def activitylog(
     interaction: discord.Interaction,
     format: app_commands.Choice[str],
@@ -119,13 +121,21 @@ async def activitylog(
     log_url: str
 ):
     # ACK immediately so Discord doesn't timeout
-    await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer()
 
-    # Basic validation
+    # Restricting the command for just #activity-logs channel
+    if interaction.channel_id != ALLOWED_CHANNEL_ID:
+        await interaction.response.send_message(
+            "❌ This command can only be used in the activity log channel.",
+            ephemeral=True
+        )
+        return
+
+    # Basic number validation
     if cast <= 0 or cast > 100:
         await interaction.followup.send("❌ Cast must be a reasonable number.", ephemeral=True)
         return
-
+    # URL validation
     if not (log_url.startswith("http://") or log_url.startswith("https://")):
         await interaction.followup.send("❌ Log link must be a valid URL (http/https).", ephemeral=True)
         return
@@ -155,7 +165,7 @@ async def activitylog(
         await interaction.followup.send(
             "**✅ Log received! View your activity here:** "
             "https://docs.google.com/spreadsheets/d/1oI3CNAzxhC8GvMPYoBpnQcTRY_OwKrKMiAhg_uOn5YI/edit?usp=sharing",
-            ephemeral=True
+            
         )
 
     except Exception as e:
@@ -294,7 +304,7 @@ async def activitystats(
     end_date: Optional[str] = None,
 ):
     # Defer if your sheet can be slow (prevents Discord 'interaction failed')
-    await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer()
 
     # Parse date inputs safely
     try:
