@@ -12,12 +12,17 @@ from dotenv import load_dotenv
 import gspread
 from google.oauth2.service_account import Credentials
 
-# Load token from .env file
+# Loading token from .env file
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-LOG_CHANNEL_IDS = {1468075184505360394, 1468264499596230718}
+# Establishing #activity-logs as the only allowed channel for the bot to work in
+LOG_CHANNEL_ID = 1468264499596230718
 ALLOWED_CHANNEL_ID = 1468264499596230718
+
+# Establishing that only real messages from #hosting-logs can be used for the Log Link: part of /activitylog bot
+HOSTING_SERVER_ID = 123456789012345678
+HOSTING_LOG_CHANNEL_ID = 234567890123456789
 
 GUILD_ID = int(os.getenv("GUILD_ID", "0"))
 GUILD_OBJ = discord.Object(id=GUILD_ID) if GUILD_ID else None
@@ -45,11 +50,25 @@ FORMAT_CHOICES = [
     app_commands.Choice(name="The Hunger Games", value="the_hunger_games"),
     app_commands.Choice(name="Other", value="other"),
 ]
+
+# Dropdown Options for Host Type
+HOST_TYPE_CHOICES = [
+    app_commands.Choice(name="My Own Hosting", value="My Own Hosting"),
+    app_commands.Choice(name="Co-Hosting", value="Co-Hosting"),
+    app_commands.Choice(name="Hosting Takeover", value="Hosting Takeover"),
+]
+
 # Dropdown Options for Casting Selection Process
 CASTING_PROCESS_CHOICES = [
     app_commands.Choice(name="Standard", value="Standard"),
     app_commands.Choice(name="Handpicked", value="Handpicked"),
     app_commands.Choice(name="All", value="All"),
+]
+
+# Creates dropdown for Cast Size (from 5 to 30 with an option for 30+)
+CAST_SIZE_CHOICES = [
+    *[app_commands.Choice(name=str(i), value=str(i)) for i in range(5, 31)],
+    app_commands.Choice(name="30+", value="30+"),
 ]
 
 # Google Sheet config. info
@@ -106,15 +125,23 @@ async def on_ready():
     guild=GUILD_OBJ
 )
 @app_commands.describe(
-    format="Choose the game format",
-    casting_process="Select casting process",
-    cast="Number of players",
-    log_url="Link to the hosting log message"
+    host_type="Who hosted this game?",
+    format="Please select the game format. If you do not see your format listed, please select Other",
+    casting_process="How did you pick your cast?",
+    cast="How many players attended the game?",
+    log_url="Paste the link to your #hosting-logs message"
 )
-@app_commands.choices(format=FORMAT_CHOICES, casting_process=CASTING_PROCESS_CHOICES)
+
+@app_commands.choices(
+    host_type=HOST_TYPE_CHOICES,
+    format=FORMAT_CHOICES,
+    casting_process=CASTING_PROCESS_CHOICES,
+    cast=CAST_SIZE_CHOICES
+)
 
 async def activitylog(
     interaction: discord.Interaction,
+    host_type: app_commands.Choice[str],
     format: app_commands.Choice[str],
     casting_process: app_commands.Choice[str],
     cast: int,
@@ -131,10 +158,6 @@ async def activitylog(
         )
         return
 
-    # Basic number validation
-    if cast <= 0 or cast > 100:
-        await interaction.followup.send("❌ Cast must be a reasonable number.", ephemeral=True)
-        return
     # URL validation
     if not (log_url.startswith("http://") or log_url.startswith("https://")):
         await interaction.followup.send("❌ Log link must be a valid URL (http/https).", ephemeral=True)
@@ -154,8 +177,9 @@ async def activitylog(
                 datetime.now().isoformat(timespec="seconds"),
                 interaction.user.display_name,
                 format.name,
+                host_type.value,
                 casting_process.name,
-                cast,
+                cast.value,
                 log_url,
                 activity_log_link,
             ],
@@ -176,21 +200,26 @@ async def activitylog(
 
 # ========= Helper functions =========
 
+DISCORD_MESSAGE_LINK_RE = re.compile(
+    r"^https://discord\.com/channels/(\d+)/(\d+)/(\d+)$"
+)
+
+def parse_discord_message_link(url: str):
+    match = DISCORD_MESSAGE_LINK_RE.match(url.strip())
+    if not match:
+        return None
+
+    guild_id, channel_id, message_id = map(int, match.groups())
+    return guild_id, channel_id, message_id
+
+# Helper for breaking down Discord datetime. Accepts 'YYYY-MM-DD' and returns a date object, or None if s is None/empty. Raises ValueError if provided but invalid format.
 def parse_yyyy_mm_dd(s: Optional[str]) -> Optional[date]:
-    """
-    Accepts 'YYYY-MM-DD' and returns a date object, or None if s is None/empty.
-    Raises ValueError if provided but invalid format.
-    """
     if not s:
         return None
     return datetime.strptime(s.strip(), "%Y-%m-%d").date()
 
-
+# Your sheet uses ISO like '2026-02-08T17:26:18' (or similar). This extracts the date portion safely.
 def parse_sheet_date(cell_value: str) -> Optional[date]:
-    """
-    Your sheet uses ISO like '2026-02-08T17:26:18' (or similar).
-    This extracts the date portion safely.
-    """
     if not cell_value:
         return None
 
