@@ -144,7 +144,7 @@ async def activitylog(
     host_type: app_commands.Choice[str],
     format: app_commands.Choice[str],
     casting_process: app_commands.Choice[str],
-    cast: int,
+    cast: app_commands.Choice[str],
     log_url: str
 ):
     # ACK immediately so Discord doesn't timeout
