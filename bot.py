@@ -67,8 +67,8 @@ CASTING_PROCESS_CHOICES = [
 
 # Creates dropdown for Cast Size (from 5 to 30 with an option for 30+)
 CAST_SIZE_CHOICES = [
-    *[app_commands.Choice(name=str(i), value=str(i)) for i in range(5, 31)],
-    app_commands.Choice(name="30+", value="30+"),
+    *[app_commands.Choice(name=str(i), value=str(i)) for i in range(5, 28)],
+    app_commands.Choice(name="29+", value="29+"),
 ]
 
 # Google Sheet config. info
@@ -106,11 +106,9 @@ bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
 async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     try:
-        # 1) Clean up GLOBAL commands (deletes stale global duplicates if you have none defined)
-        global_synced = await bot.tree.sync()
-        print(f"Synced {len(global_synced)} global command(s).")
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} global command(s).")
 
-        # 2) Sync GUILD commands (your /activitylog and /activitystats)
         if GUILD_OBJ:
             guild_synced = await bot.tree.sync(guild=GUILD_OBJ)
             print(f"Synced {len(guild_synced)} command(s) to guild.")
@@ -124,12 +122,13 @@ async def on_ready():
     description="Log a hosting activity",
     guild=GUILD_OBJ
 )
+
 @app_commands.describe(
-    host_type="Who hosted this game?",
-    format="Please select the game format. If you do not see your format listed, please select Other",
-    casting_process="How did you pick your cast?",
-    cast="How many players attended the game?",
-    log_url="Paste the link to your #hosting-logs message"
+    host_type="Choose the host type",
+    format="Choose the game format",
+    casting_process="Select casting process",
+    cast="Select cast size",
+    log_url="Link to the hosting log message"
 )
 
 @app_commands.choices(
