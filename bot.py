@@ -67,7 +67,7 @@ CASTING_PROCESS_CHOICES = [
 
 # Creates dropdown for Cast Size (from 5 to 30 with an option for 30+)
 CAST_SIZE_CHOICES = [
-    *[app_commands.Choice(name=str(i), value=str(i)) for i in range(5, 27)],
+    *[app_commands.Choice(name=str(i), value=str(i)) for i in range(5, 28)],
     app_commands.Choice(name="28+", value="28+"),
 ]
 
