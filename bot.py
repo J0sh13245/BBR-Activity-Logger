@@ -370,6 +370,27 @@ async def activitystats(
     sheet = get_sheet()
     rows = load_activity_rows(sheet)
 
+    print("=== ACTIVITYSTATS DEBUG ===")
+    print("Host query:", repr(host))
+    print("Start:", start)
+    print("End:", end)
+    print("Total rows loaded:", len(rows))
+
+    for i, r in enumerate(rows[:10]):
+        print(f"Row {i}: {r}")
+
+        if len(r) > 1:
+            print("  Host cell:", repr(r[1]))
+        else:
+            print("  Host cell: <missing>")
+
+        if len(r) > 0:
+            print("  Date cell:", repr(r[0]))
+            print("  Parsed date:", parse_sheet_date(r[0]))
+            print("  Host matches:", host_matches(r[1], host))
+        else:
+            print("  Date cell: <missing>")
+
     # Filter
     matches = filter_rows_for_stats(rows, host_query=host, start=start, end=end)
 
