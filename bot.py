@@ -217,25 +217,40 @@ def parse_yyyy_mm_dd(s: Optional[str]) -> Optional[date]:
         return None
     return datetime.strptime(s.strip(), "%Y-%m-%d").date()
 
-# Your sheet uses ISO like '2026-02-08T17:26:18' (or similar). This extracts the date portion safely.
+
+# Flexible date parsing helper function for multiple formats
 def parse_sheet_date(cell_value: str) -> Optional[date]:
     if not cell_value:
         return None
 
     raw = str(cell_value).strip()
 
-    # If it's ISO datetime: 'YYYY-MM-DDTHH:MM:SS'
+    # Try ISO datetime: 2026-03-23T15:00:00
     if "T" in raw:
-        raw = raw.split("T", 1)[0]
+        try:
+            return datetime.strptime(raw.split("T", 1)[0], "%Y-%m-%d").date()
+        except ValueError:
+            pass
 
-    # If it's ISO-ish with space: 'YYYY-MM-DD HH:MM:SS'
-    if " " in raw:
-        raw = raw.split(" ", 1)[0]
-
+    # Try ISO-ish with space: 2026-03-23 15:00:00
     try:
-        return datetime.strptime(raw, "%Y-%m-%d").date()
+        return datetime.strptime(raw.split(" ", 1)[0], "%Y-%m-%d").date()
     except ValueError:
-        return None
+        pass
+
+    # Try pretty formatted date: Monday, March 23, 2026 @ 3:00 PM
+    try:
+        return datetime.strptime(raw, "%A, %B %d, %Y @ %I:%M %p").date()
+    except ValueError:
+        pass
+
+    # Try shorter pretty formatted date just in case
+    try:
+        return datetime.strptime(raw, "%a, %b %d, %Y @ %I:%M %p").date()
+    except ValueError:
+        pass
+
+    return None
 
 
 def host_matches(sheet_host: str, query: str) -> bool:
