@@ -225,30 +225,31 @@ def parse_sheet_date(cell_value: str) -> Optional[date]:
 
     raw = str(cell_value).strip()
 
-    # Try ISO datetime: 2026-03-23T15:00:00
-    if "T" in raw:
-        try:
-            return datetime.strptime(raw.split("T", 1)[0], "%Y-%m-%d").date()
-        except ValueError:
-            pass
+    # Normalize weird unicode spaces
+    raw = raw.replace("\u202f", " ")
 
-    # Try ISO-ish with space: 2026-03-23 15:00:00
+    # Normalize "at" → "@"
+    raw = raw.replace(" at ", " @ ")
+
+    # Try ISO first
     try:
-        return datetime.strptime(raw.split(" ", 1)[0], "%Y-%m-%d").date()
-    except ValueError:
+        return datetime.strptime(raw.split("T")[0], "%Y-%m-%d").date()
+    except:
         pass
 
-    # Try pretty formatted date: Monday, March 23, 2026 @ 3:00 PM
+    # Try pretty format
     try:
         return datetime.strptime(raw, "%A, %B %d, %Y @ %I:%M %p").date()
-    except ValueError:
+    except:
         pass
 
-    # Try shorter pretty formatted date just in case
-    try:
-        return datetime.strptime(raw, "%a, %b %d, %Y @ %I:%M %p").date()
-    except ValueError:
-        pass
+    # Try without time
+    if "@" in raw:
+        try:
+            left = raw.split("@")[0].strip()
+            return datetime.strptime(left, "%A, %B %d, %Y").date()
+        except:
+            pass
 
     return None
 
@@ -369,27 +370,6 @@ async def activitystats(
     # Load sheet rows
     sheet = get_sheet()
     rows = load_activity_rows(sheet)
-
-    print("=== ACTIVITYSTATS DEBUG ===")
-    print("Host query:", repr(host))
-    print("Start:", start)
-    print("End:", end)
-    print("Total rows loaded:", len(rows))
-
-    for i, r in enumerate(rows[:10]):
-        print(f"Row {i}: {r}")
-
-        if len(r) > 1:
-            print("  Host cell:", repr(r[1]))
-        else:
-            print("  Host cell: <missing>")
-
-        if len(r) > 0:
-            print("  Date cell:", repr(r[0]))
-            print("  Parsed date:", parse_sheet_date(r[0]))
-            print("  Host matches:", host_matches(r[1], host))
-        else:
-            print("  Date cell: <missing>")
 
     # Filter
     matches = filter_rows_for_stats(rows, host_query=host, start=start, end=end)
